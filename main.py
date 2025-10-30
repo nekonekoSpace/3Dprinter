@@ -26,6 +26,23 @@ doc_name={DOC_NAME}を使用すること
 出力はテキスト中心。画像は返さないでください。
 """
 
+# SYSTEM_INSTRUCTIONS = f"""
+# あなたはFreeCAD MCPツールを使うCADオペレータです。
+# 出力はテキスト中心。画像は返さないでください（サーバは --only-text-feedback）。
+# 寸法は必ずmmで明示。以降の全ツール呼び出しで doc_name を正しく指定すること。
+
+# 最初に以下を必ず実施:
+# - execute_code で App.ActiveDocument の Name を取得（LabelではなくName）。
+# - Name が "{DOC_NAME}" でなければ、存在確認: get_documents 等で "{DOC_NAME}" が無ければ create_document(name="{DOC_NAME}")
+# - 以降の全ツール呼び出しは doc_name="{DOC_NAME}"
+# - 必要に応じて get_view を一度実行し、ビューを初期化（viewAxonometric, fitAll）
+# 各ターンで:
+# 1) 実行計画(簡潔)
+# 2) 実行するMCPツール呼び出し（作成/編集の対象名・寸法・doc_nameを明示）
+# 3) 生成/変更したオブジェクト名の一覧
+# 4) 失敗時は原因と次の打ち手
+# """
+
 # SYSTEM_INSTRUCTIONS2 = f"""
 # あなたはFreeCAD MCPツールを使うCADオペレータです。
 # 必ずミリメートル(mm)単位で寸法を明示してください。
@@ -56,11 +73,10 @@ def make_server() -> MCPServerStdio:
             "command": "uv",
             "args": [
                 "--directory",
-                # ★あなたのfreecad-mcpの場所
-                r"C:\Users\neko\Downloads\3dprinter\mcp-server\freecad-mcp",
+                r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
                 "run",
                 "freecad-mcp",
-                 "--only-text-feedback",
+                #  "--only-text-feedback",
             ],
         },
         client_session_timeout_seconds=180,  # 少し長め
@@ -114,8 +130,10 @@ async def main():
         mcp_servers=[server],
         # model="gpt-4o",  # 手元の契約に合わせて（gpt-4.1-mini / o4-mini 等でもOK）
         model="gpt-4.1",  # 手元の契約に合わせて（gpt-4.1-mini / o4-mini 等でもOK）
+        # model="gpt-o1",  # 手元の契約に合わせて（gpt-4.1-mini / o4-mini 等でもOK）
     )
-
+    resp = await server.call_tool("get_objects", {"doc_name": "Main"})
+    print(resp) 
     print("==== FreeCAD 対話モード ====")
     print("例: 『半径30mmの球を作成』『Sphere_001を半径40mmに変更』『前回の球と50mm角立方体を和集合』など")
     print("終了するには: /exit")
@@ -138,8 +156,8 @@ async def main():
 
         # 必要に応じて画像を保存したいときだけパスを渡す
         # ふだんは None で捨てる（＝コンソールにBase64が出てこない）
-        await stream_once(agent, "create_documentを行って、ドキュメント作成は行わなくてよいです."+user_text, save_image_path=None)
-
+        # await stream_once(agent, "create_documentを行って、ドキュメント作成は行わなくてよいです."+user_text, save_image_path=None)
+        await stream_once(agent, user_text, save_image_path=None)
     await server.cleanup()
     await openai_client.close()
 
