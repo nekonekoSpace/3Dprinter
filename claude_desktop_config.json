@@ -3,7 +3,7 @@
         "freecad":{
             "command":"uvx",
             "args":[
-                "freecad-m"
+                "freecad-mcp"
             ]
             
         }
