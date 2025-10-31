@@ -392,7 +392,7 @@ async def main():
 
         # 最初の一言
         print(" 初期化中...\n")
-        first_message = "(必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\nFreeCADで人工衛星を作ってください"
+        first_message = "(必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\nFreeCADで人工衛星を作ってください。必ずどんなものがどこに配置されるか考えてから作業を始めてください。"
         messages.append({
             "role": "user",
             "content": first_message
