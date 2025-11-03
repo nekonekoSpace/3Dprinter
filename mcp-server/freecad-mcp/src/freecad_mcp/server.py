@@ -3,7 +3,7 @@ import logging
 import xmlrpc.client
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Literal
-
+from typing import List, Union
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.types import TextContent, ImageContent
 
@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger("FreeCADMCPserver")
 
 
-_only_text_feedback = False
+# _only_text_feedback = False
 
 
 class FreeCADConnection:
@@ -42,29 +42,32 @@ class FreeCADConnection:
     def execute_code(self, code: str) -> dict[str, Any]:
         return self.server.execute_code(code)
 
+    def execute_code_oden(self) -> dict[str, Any]:
+        return self.server.execute_code()
+
     def get_active_screenshot(self, view_name: str = "Isometric") -> str | None:
         try:
             # Check if we're in a view that supports screenshots
             result = self.server.execute_code("""
-import FreeCAD
-import FreeCADGui
+            import FreeCAD
+            import FreeCADGui
 
-if FreeCAD.Gui.ActiveDocument and FreeCAD.Gui.ActiveDocument.ActiveView:
-    view_type = type(FreeCAD.Gui.ActiveDocument.ActiveView).__name__
-    
-    # These view types don't support screenshots
-    unsupported_views = ['SpreadsheetGui::SheetView', 'DrawingGui::DrawingView', 'TechDrawGui::MDIViewPage']
-    
-    if view_type in unsupported_views or not hasattr(FreeCAD.Gui.ActiveDocument.ActiveView, 'saveImage'):
-        print("Current view does not support screenshots")
-        False
-    else:
-        print(f"Current view supports screenshots: {view_type}")
-        True
-else:
-    print("No active view")
-    False
-""")
+            if FreeCAD.Gui.ActiveDocument and FreeCAD.Gui.ActiveDocument.ActiveView:
+                view_type = type(FreeCAD.Gui.ActiveDocument.ActiveView).__name__
+                
+                # These view types don't support screenshots
+                unsupported_views = ['SpreadsheetGui::SheetView', 'DrawingGui::DrawingView', 'TechDrawGui::MDIViewPage']
+                
+                if view_type in unsupported_views or not hasattr(FreeCAD.Gui.ActiveDocument.ActiveView, 'saveImage'):
+                    print("Current view does not support screenshots")
+                    False
+                else:
+                    print(f"Current view supports screenshots: {view_type}")
+                    True
+            else:
+                print("No active view")
+                False
+            """)
 
             # If the view doesn't support screenshots, return None
             if not result.get("success", False) or "Current view does not support screenshots" in result.get("message", ""):
@@ -78,11 +81,22 @@ else:
             logger.error(f"Error getting screenshot: {e}")
             return None
 
-    def get_objects(self, doc_name: str) -> list[dict[str, Any]]:
+    def get_objects(self, doc_name: str) -> List[Union[TextContent, ImageContent]]: 
         return self.server.get_objects(doc_name)
 
-    def get_object(self, doc_name: str, obj_name: str) -> dict[str, Any]:
+
+
+    # # def get_objects(self, doc_name: str) -> list[dict[str, Any]]:
+    #     return self.server.get_objects(doc_name)
+
+    # def get_object(self, doc_name: str, obj_name: str) -> dict[str, Any]:
+    #     return self.server.get_object(doc_name, obj_name)
+
+
+    def get_object(self, doc_name: str, obj_name: str) -> List[Union[TextContent, ImageContent]]:
         return self.server.get_object(doc_name, obj_name)
+
+
 
     def get_parts_list(self) -> list[str]:
         return self.server.get_parts_list()
@@ -435,6 +449,51 @@ def execute_code(ctx: Context, code: str) -> list[TextContent | ImageContent]:
         ]
 
 
+
+
+@mcp.tool()
+def execute_code_oden() -> list[TextContent | ImageContent]:
+    """Execute arbitrary Python code for Oden(おでん) in FreeCAD.
+
+    Args:
+        no need. code is automatically loaded.
+
+    Returns:
+        A message indicating the success or failure of the code execution, the output of the code execution, and a screenshot of the object.
+    """    
+    from pathlib import Path
+    try:
+        # このファイルと同じディレクトリにある oden.py を読む
+        code_path = Path(__file__).with_name("oden.py")
+        code = code_path.read_text(encoding="utf-8")
+    except Exception as e:
+        logger.error(f"Failed to read ./oden.py: {e}")
+        return [TextContent(type="text", text=f"Failed to read ./oden.py: {e}")]
+
+    
+    freecad = get_freecad_connection()
+    try:
+        res = freecad.execute_code(code)
+        screenshot = freecad.get_active_screenshot()
+        
+        if res["success"]:
+            response = [
+                TextContent(type="text", text=f"Code executed successfully: {res['message']}"),
+            ]
+            return add_screenshot_if_available(response, screenshot)
+        else:
+            response = [
+                TextContent(type="text", text=f"Failed to execute code: {res['error']}"),
+            ]
+            return add_screenshot_if_available(response, screenshot)
+    except Exception as e:
+        logger.error(f"Failed to execute code: {str(e)}")
+        return [
+            TextContent(type="text", text=f"Failed to execute code: {str(e)}")
+        ]
+
+
+
 @mcp.tool()
 def get_view(ctx: Context, view_name: Literal["Isometric", "Front", "Top", "Right", "Back", "Left", "Bottom", "Dimetric", "Trimetric"]) -> list[ImageContent | TextContent]:
     """Get a screenshot of the active view.
@@ -457,6 +516,8 @@ def get_view(ctx: Context, view_name: Literal["Isometric", "Front", "Top", "Righ
     """
     freecad = get_freecad_connection()
     screenshot = freecad.get_active_screenshot(view_name)
+    logger.info(f"screenshot gv: {screenshot}")
+
     
     if screenshot is not None:
         return [ImageContent(type="image", data=screenshot, mimeType="image/png")]
@@ -497,7 +558,8 @@ def insert_part_from_library(ctx: Context, relative_path: str) -> list[TextConte
 
 
 @mcp.tool()
-def get_objects(ctx: Context, doc_name: str) -> list[dict[str, Any]]:
+def get_objects(ctx: Context, doc_name: str) -> List[Union[TextContent, ImageContent]]:
+# def get_objects(ctx: Context, doc_name: str):
     """Get all objects in a document.
     You can use this tool to get the objects in a document to see what you can check or edit.
 
@@ -508,11 +570,16 @@ def get_objects(ctx: Context, doc_name: str) -> list[dict[str, Any]]:
         A list of objects in the document and a screenshot of the document.
     """
     freecad = get_freecad_connection()
+
     try:
         screenshot = freecad.get_active_screenshot()
         response = [
             TextContent(type="text", text=json.dumps(freecad.get_objects(doc_name))),
         ]
+
+        result = add_screenshot_if_available(response, screenshot)
+
+
         return add_screenshot_if_available(response, screenshot)
     except Exception as e:
         logger.error(f"Failed to get objects: {str(e)}")
@@ -522,7 +589,8 @@ def get_objects(ctx: Context, doc_name: str) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-def get_object(ctx: Context, doc_name: str, obj_name: str) -> dict[str, Any]:
+# def get_object(ctx: Context, doc_name: str, obj_name: str) -> dict[str, Any]:
+def get_object(ctx: Context, doc_name: str, obj_name: str)  -> List[Union[TextContent, ImageContent]]:
     """Get an object from a document.
     You can use this tool to get the properties of an object to see what you can check or edit.
 
@@ -539,6 +607,12 @@ def get_object(ctx: Context, doc_name: str, obj_name: str) -> dict[str, Any]:
         response = [
             TextContent(type="text", text=json.dumps(freecad.get_object(doc_name, obj_name))),
         ]
+
+
+
+        result = add_screenshot_if_available(response, screenshot)
+
+
         return add_screenshot_if_available(response, screenshot)
     except Exception as e:
         logger.error(f"Failed to get object: {str(e)}")

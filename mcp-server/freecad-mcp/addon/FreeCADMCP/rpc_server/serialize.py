@@ -18,9 +18,13 @@ def serialize_value(value):
             "Rotation": serialize_value(value.Rotation),
         }
     elif isinstance(value, (list, tuple)):
+        # try:
+        #     return [serialize_value(v) for v in value]
+        # except:
+        #     return list(value)
         return [serialize_value(v) for v in value]
-    elif isinstance(value, (App.Color)):
-        return tuple(value)
+    # elif isinstance(value, (App.Color)):
+        # return tuple(value)
     else:
         return str(value)
 
@@ -40,12 +44,29 @@ def serialize_shape(shape):
 def serialize_view_object(view):
     if view is None:
         return None
-    return {
-        "ShapeColor": serialize_value(view.ShapeColor),
-        "Transparency": view.Transparency,
-        "Visibility": view.Visibility,
-    }
+    # return {
+    #     "ShapeColor": serialize_value(view.ShapeColor),
+    #     "Transparency": view.Transparency,
+    #     "Visibility": view.Visibility,
+    # }
 
+
+    result = {
+        "Visibility": getattr(view, 'Visibility', True)
+    }
+    
+    # ShapeColorが存在する場合のみ追加
+    if hasattr(view, 'ShapeColor'):
+        try:
+            result["ShapeColor"] = serialize_value(view.ShapeColor)
+        except:
+            pass
+    
+    # Transparencyが存在する場合のみ追加
+    if hasattr(view, 'Transparency'):
+        result["Transparency"] = view.Transparency
+    
+    return result
 
 def serialize_object(obj):
     if isinstance(obj, list):
