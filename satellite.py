@@ -7,6 +7,8 @@ import json
 import logging
 import shutil
 import base64
+import os
+import mimetypes
 from typing import Optional, List, Dict, Any
 
 from dotenv import load_dotenv
@@ -76,7 +78,8 @@ def parse_args():
     p.add_argument("--only-text-feedback", action="store_true", help="MCPをテキスト出力モードで起動")
     p.add_argument("--log-level", default="INFO", help="ログレベル（DEBUG/INFO/WARNING/ERROR）")
     p.add_argument("--show-tool-calls", action="store_true", help="ツール呼び出しと結果を詳細表示")
-    p.add_argument("--max-turns", type=int, default=30, help="1クエリあたりの最大ターン数")
+    p.add_argument("--max-turns", type=int, default=60, help="1クエリあたりの最大ターン数")
+    p.add_argument("--init-image", type=str, default="./alos4.png", help="初回指示に添付する画像ファイルのパス（1枚）")
     return p.parse_args()
 
 
@@ -150,7 +153,7 @@ def make_server() -> MCPServerStdio:
     return MCPServerStdio(
         name="FreeCAD via uv",
         params={"command": "uv", "args": uv_args},
-        client_session_timeout_seconds=60,
+        client_session_timeout_seconds=20,
     )
 
 
@@ -349,6 +352,29 @@ async def chat_with_tools(
     
     return final_response, current_messages
 
+def path_to_data_url(path: str) -> str:
+    """
+    画像ファイルを data: スキームのBase64 URLに変換。
+    サポート（推奨）: png, jpg, jpeg, webp
+    """
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"画像ファイルが見つかりません: {path}")
+
+    # mimetype 推定（拡張子頼み）
+    mime, _ = mimetypes.guess_type(path)
+    if mime is None:
+        # 既定はPNGに倒す（PILで判定する方法もあるが簡易化）
+        mime = "image/png"
+
+    allowed = {"image/png", "image/jpeg", "image/webp"}
+    if mime not in allowed:
+        logging.warning(f"非推奨のMIMEタイプ({mime})です。png/jpeg/webpを推奨します。")
+
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
+
+
 
 async def main():
     # OpenAIクライアントの準備
@@ -392,12 +418,26 @@ async def main():
 
         # 最初の一言
         print(" 初期化中...\n")
-        first_message = "(必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\nFreeCADで人工衛星を作ってください。必ずどんなものがどこに配置されるか考えてから作業を始めてください。"
-        messages.append({
-            "role": "user",
-            "content": first_message
-        })
+        first_message = """
+        (必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\n
+        Frecadで人工衛星を作って下し
+        """
+        # FreeCADで画像のようなALOS4(人工衛星)を作ってください。必ずどんなものがどこに配置されるか考えてから作業を完了してください。"
         
+        data_url = path_to_data_url(ARGS.init_image)
+        first_user_message = {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": first_message},
+                {"type": "image_url", "image_url": {"url": data_url}}
+            ]
+        }
+        # messages.append({
+        #     "role": "user",
+        #     "content": first_message
+        # })
+        messages.append(first_user_message)
+
         _, messages = await chat_with_tools(
             openai_client,
             server,

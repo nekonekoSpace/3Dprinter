@@ -224,8 +224,7 @@ def extract_content_from_tool_result(result) -> tuple[str, Optional[str]]:
     return text_content, image_data
 
 
-def 
-(result) -> str:
+def format_tool_result_for_display(result) -> str:
     """ツール結果を表示用にフォーマット"""
     text, has_image = extract_content_from_tool_result(result)
     if has_image:
@@ -335,7 +334,7 @@ async def chat_with_tools(
                 print(f" 結果:")
                 display_text = format_tool_result_for_display(tool_result)
                 # print(display_text)
-        
+        # 
                 if len(display_text) > 500:
                     print(display_text[:500])
                     print("... (省略)")
