@@ -224,7 +224,8 @@ def extract_content_from_tool_result(result) -> tuple[str, Optional[str]]:
     return text_content, image_data
 
 
-def format_tool_result_for_display(result) -> str:
+def 
+(result) -> str:
     """ツール結果を表示用にフォーマット"""
     text, has_image = extract_content_from_tool_result(result)
     if has_image:
@@ -333,13 +334,13 @@ async def chat_with_tools(
                 # 結果を表示
                 print(f" 結果:")
                 display_text = format_tool_result_for_display(tool_result)
-                print(display_text)
+                # print(display_text)
         
-                # if len(display_text) > 500:
-                #     print(display_text[:500])
-                #     print("... (省略)")
-                # else:
-                #     print(display_text)
+                if len(display_text) > 500:
+                    print(display_text[:500])
+                    print("... (省略)")
+                else:
+                    print(display_text)
 
                 # ツール結果をメッセージ履歴に追加
                 current_messages.append({
@@ -447,6 +448,7 @@ async def main():
                 first_user_message = {"role": "user", "content": first_text}
         else:
             # 画像指定なし
+            print("画像なし")
             first_user_message = {"role": "user", "content": first_text}
 
         messages.append(first_user_message)

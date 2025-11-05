@@ -49,24 +49,24 @@ class FreeCADConnection:
         try:
             # Check if we're in a view that supports screenshots
             result = self.server.execute_code("""
-            import FreeCAD
-            import FreeCADGui
-
-            if FreeCAD.Gui.ActiveDocument and FreeCAD.Gui.ActiveDocument.ActiveView:
-                view_type = type(FreeCAD.Gui.ActiveDocument.ActiveView).__name__
-                
-                # These view types don't support screenshots
-                unsupported_views = ['SpreadsheetGui::SheetView', 'DrawingGui::DrawingView', 'TechDrawGui::MDIViewPage']
-                
-                if view_type in unsupported_views or not hasattr(FreeCAD.Gui.ActiveDocument.ActiveView, 'saveImage'):
-                    print("Current view does not support screenshots")
-                    False
-                else:
-                    print(f"Current view supports screenshots: {view_type}")
-                    True
-            else:
-                print("No active view")
-                False
+import FreeCAD
+import FreeCADGui
+print("neko")
+if FreeCAD.Gui.ActiveDocument and FreeCAD.Gui.ActiveDocument.ActiveView:
+    view_type = type(FreeCAD.Gui.ActiveDocument.ActiveView).__name__
+    
+    # These view types don't support screenshots
+    unsupported_views = ['SpreadsheetGui::SheetView', 'DrawingGui::DrawingView', 'TechDrawGui::MDIViewPage']
+    
+    if view_type in unsupported_views or not hasattr(FreeCAD.Gui.ActiveDocument.ActiveView, 'saveImage'):
+        print("Current view does not support screenshots")
+        False
+    else:
+        print(f"Current view supports screenshots: {view_type}")
+        True
+else:
+    print("No active view")
+    False
             """)
 
             # If the view doesn't support screenshots, return None
@@ -81,17 +81,14 @@ class FreeCADConnection:
             logger.error(f"Error getting screenshot: {e}")
             return None
 
-    def get_objects(self, doc_name: str) -> List[Union[TextContent, ImageContent]]: 
-        return self.server.get_objects(doc_name)
-
-
-
-    # # def get_objects(self, doc_name: str) -> list[dict[str, Any]]:
+    # def get_objects(self, doc_name: str) -> List[Union[TextContent, ImageContent]]: 
     #     return self.server.get_objects(doc_name)
+
+    def get_objects(self, doc_name: str) -> list[dict[str, Any]]:
+        return self.server.get_objects(doc_name)
 
     # def get_object(self, doc_name: str, obj_name: str) -> dict[str, Any]:
     #     return self.server.get_object(doc_name, obj_name)
-
 
     def get_object(self, doc_name: str, obj_name: str) -> List[Union[TextContent, ImageContent]]:
         return self.server.get_object(doc_name, obj_name)
@@ -558,8 +555,8 @@ def insert_part_from_library(ctx: Context, relative_path: str) -> list[TextConte
 
 
 @mcp.tool()
-def get_objects(ctx: Context, doc_name: str) -> List[Union[TextContent, ImageContent]]:
-# def get_objects(ctx: Context, doc_name: str):
+# def get_objects(ctx: Context, doc_name: str) -> List[Union[TextContent, ImageContent]]:
+def get_objects(ctx: Context, doc_name: str):
     """Get all objects in a document.
     You can use this tool to get the objects in a document to see what you can check or edit.
 
@@ -589,8 +586,8 @@ def get_objects(ctx: Context, doc_name: str) -> List[Union[TextContent, ImageCon
 
 
 @mcp.tool()
-# def get_object(ctx: Context, doc_name: str, obj_name: str) -> dict[str, Any]:
-def get_object(ctx: Context, doc_name: str, obj_name: str)  -> List[Union[TextContent, ImageContent]]:
+def get_object(ctx: Context, doc_name: str, obj_name: str) -> dict[str, Any]:
+# def get_object(ctx: Context, doc_name: str, obj_name: str)  -> List[Union[TextContent, ImageContent]]:
     """Get an object from a document.
     You can use this tool to get the properties of an object to see what you can check or edit.
 

@@ -61,10 +61,10 @@ print_color_ascii(image, width, line_scale)
 
 def parse_args():
     p = argparse.ArgumentParser(description="FreeCAD MCP + OpenAI 直接呼び出しREPL")
-    p.add_argument("--model", default="gpt-4o", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    # p.add_argument("--model", default="gpt-4o", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     # p.add_argument("--model", default="gpt-o3", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     # p.add_argument("--model", default="gpt-4o-mini", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
-    # p.add_argument("--model", default="gpt-4.1", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    p.add_argument("--model", default="gpt-4.1", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     # p.add_argument("--model", default="gpt-5-mini", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     # p.add_argument("--model", default="gpt-5", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     p.add_argument("--doc-name", default="Main", help="作業に使用するFreeCADドキュメント名")
@@ -150,7 +150,7 @@ def make_server() -> MCPServerStdio:
     return MCPServerStdio(
         name="FreeCAD via uv",
         params={"command": "uv", "args": uv_args},
-        client_session_timeout_seconds=180,
+        client_session_timeout_seconds=60,
     )
 
 
