@@ -334,7 +334,6 @@ async def chat_with_tools(
                 print(f" 結果:")
                 display_text = format_tool_result_for_display(tool_result)
                 # print(display_text)
-        # 
                 if len(display_text) > 500:
                     print(display_text[:500])
                     print("... (省略)")
