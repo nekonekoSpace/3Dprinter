@@ -63,12 +63,12 @@ line_scale = 0.55
 
 def parse_args():
     p = argparse.ArgumentParser(description="FreeCAD MCP + OpenAI 直接呼び出しREPL")
-    p.add_argument("--model", default="gpt-4o", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    p.add_argument("--model", default="gpt-4.1", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     p.add_argument("--doc-name", default="Main", help="作業に使用するFreeCADドキュメント名")
     p.add_argument(
         "--server-dir",
-        # default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
-        default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
+        default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
+        # default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
         help="freecad-mcp のディレクトリ",
     )
     p.add_argument("--only-text-feedback", action="store_true", help="MCPをテキスト出力モードで起動")
