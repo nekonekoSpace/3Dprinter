@@ -1,18 +1,14 @@
-PCに番号を降る
+uv run python tutorial.py
 
-freecadのインストール
-これ時間かかる
+お客さん用
+uv run python exec.py --init-image  hoge.png
+
+プロンプト集
+円錐の半径を80ｍｍにして
+原点に半径20㎜のドーナッツを追加して
+ドーナッツを2倍にして
+原点に半径40ｍｍの球を追加して
+ドーナッツを下に40㎜ずらして
 
 
-
-
-uvのインストール
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-
-C:\Users\USER\AppData\Local\Programs\FreeCAD 1.0
-に
-freecad-mcpのaddonを入れる
-
-△claude desktop
-
+集
