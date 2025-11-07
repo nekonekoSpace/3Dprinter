@@ -67,8 +67,8 @@ def parse_args():
     p.add_argument("--doc-name", default="Main", help="作業に使用するFreeCADドキュメント名")
     p.add_argument(
         "--server-dir",
-        default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
-        # default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
+        # default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
+        default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
         help="freecad-mcp のディレクトリ",
     )
     p.add_argument("--only-text-feedback", action="store_true", help="MCPをテキスト出力モードで起動")
