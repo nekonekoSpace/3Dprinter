@@ -17,6 +17,7 @@ from agents.mcp import MCPServerStdio
 
 load_dotenv()
 
+import argparse
 from PIL import Image
 import numpy as np
 import sys
@@ -29,7 +30,6 @@ except Exception:
     pass
 
 ASCII_CHARS = "@%#*+=-:. "  # 暗→明（好みで変更可）
-
 
 def print_color_ascii(image_path, width=200, line_scale=0.55, charset=ASCII_CHARS):
     img = Image.open(image_path).convert("RGB")
@@ -55,31 +55,32 @@ def print_color_ascii(image_path, width=200, line_scale=0.55, charset=ASCII_CHAR
 
 
 width = 100
-image = "./b.png"
+image = "./b.png"    
 line_scale = 0.55
 
-# print_color_ascii(image, width, line_scale)
-
+    
+print_color_ascii(image, width, line_scale)
 
 def parse_args():
     p = argparse.ArgumentParser(description="FreeCAD MCP + OpenAI 直接呼び出しREPL")
+    # p.add_argument("--model", default="gpt-4o", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    # p.add_argument("--model", default="gpt-o3", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    # p.add_argument("--model", default="gpt-4o-mini", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     p.add_argument("--model", default="gpt-4.1", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    # p.add_argument("--model", default="gpt-5-mini", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
+    # p.add_argument("--model", default="gpt-5", help="使用するOpenAIモデル（例: gpt-4o, gpt-4o-mini）")
     p.add_argument("--doc-name", default="Main", help="作業に使用するFreeCADドキュメント名")
     p.add_argument(
         "--server-dir",
-        default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
-        # default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
+        # default=r"C:\Users\USER\Documents\3dprinterrrr\mcp-server\freecad-mcp",
+        default=r"C:\Users\USER\Documents\3Dprinter\mcp-server\freecad-mcp",
         help="freecad-mcp のディレクトリ",
     )
     p.add_argument("--only-text-feedback", action="store_true", help="MCPをテキスト出力モードで起動")
     p.add_argument("--log-level", default="INFO", help="ログレベル（DEBUG/INFO/WARNING/ERROR）")
     p.add_argument("--show-tool-calls", action="store_true", help="ツール呼び出しと結果を詳細表示")
-    p.add_argument("--max-turns", type=int, default=30, help="1クエリあたりの最大ターン数")
-
-    # ★ 追加: 初回プロンプトに同梱する画像（1枚）を指定
-    # p.add_argument("--init-image", type=str, default=r"C:\Users\USER\Documents\3dprinterrrr\oden.png", help="初回指示に添付する画像ファイルのパス（1枚）")
-    p.add_argument("--init-image", type=str, default="", help="初回指示に添付する画像ファイルのパス（1枚）")
-
+    p.add_argument("--max-turns", type=int, default=60, help="1クエリあたりの最大ターン数")
+    p.add_argument("--init-image", type=str, default="./alos4.png", help="初回指示に添付する画像ファイルのパス（1枚）")
     return p.parse_args()
 
 
@@ -92,6 +93,7 @@ SYSTEM_INSTRUCTIONS_TEMPLATE = """
 必ずミリメートル(mm)単位で寸法を明示してください。
 
 【3Dプリンターで印刷するために必ず次のことを守ってください。】
+・3㎝x3㎝x3㎝に模型が収まること
 ・必ず幅や厚さが5㎜以上あること
 ・すべてのパーツがくっついていること
 ・z軸正方向が上を表します
@@ -118,18 +120,18 @@ class ImageStore:
     def __init__(self):
         self.images = {}
         self.counter = 0
-
+    
     def add(self, image_data: str) -> str:
         """画像を保存してIDを返す"""
         self.counter += 1
         img_id = f"img_{self.counter}"
         self.images[img_id] = image_data
         return img_id
-
+    
     def get(self, img_id: str) -> Optional[str]:
         """IDから画像データを取得"""
         return self.images.get(img_id)
-
+    
     def clear(self):
         """全画像をクリア"""
         self.images.clear()
@@ -146,14 +148,13 @@ def make_server() -> MCPServerStdio:
         raise RuntimeError("uv が見つかりません。'pipx install uv' などで導入してください。")
 
     uv_args = ["--directory", ARGS.server_dir, "run", "freecad-mcp"]
-    # print("neko",ARGS.only_text_feedback)
     if ARGS.only_text_feedback:
         uv_args.append("--only-text-feedback")
 
     return MCPServerStdio(
         name="FreeCAD via uv",
         params={"command": "uv", "args": uv_args},
-        client_session_timeout_seconds=180,
+        client_session_timeout_seconds=20,
     )
 
 
@@ -210,7 +211,7 @@ def extract_content_from_tool_result(result) -> tuple[str, Optional[str]]:
     """
     text_parts = []
     image_data = None
-
+    
     if hasattr(result, 'content'):
         for item in result.content:
             if hasattr(item, 'type'):
@@ -219,9 +220,9 @@ def extract_content_from_tool_result(result) -> tuple[str, Optional[str]]:
                 elif item.type == 'image' and hasattr(item, 'data'):
                     # Base64エンコードされた画像データを保存
                     image_data = item.data
-
+    
     text_content = '\n'.join(text_parts) if text_parts else json.dumps(result, ensure_ascii=False) if isinstance(result, (dict, list)) else str(result)
-
+    
     return text_content, image_data
 
 
@@ -232,6 +233,125 @@ def format_tool_result_for_display(result) -> str:
         return text + "\n[画像データあり]"
     return text
 
+
+async def chat_with_tools(
+    client: AsyncOpenAI,
+    server: MCPServerStdio,
+    messages: List[Dict[str, Any]],
+    tools: List[Dict[str, Any]],
+    model: str
+) -> tuple[str, List[Dict[str, Any]]]:
+    """
+    OpenAI APIを使ってツール呼び出しを含む会話を実行
+    
+    Returns:
+        (最終的なアシスタントの応答, 更新されたメッセージ履歴)
+    """
+    current_messages = messages.copy()
+    
+    for turn in range(ARGS.max_turns):
+        logging.debug(f"Turn {turn + 1}/{ARGS.max_turns}")
+        
+        # OpenAI APIを呼び出し
+        response = await client.chat.completions.create(
+            model=model,
+            messages=current_messages,
+            tools=tools,
+            tool_choice="auto"
+        )
+        
+        assistant_message = response.choices[0].message
+        
+        # アシスタントのメッセージを履歴に追加
+        assistant_dict = {
+            "role": "assistant",
+            "content": assistant_message.content,
+        }
+        if assistant_message.tool_calls:
+            assistant_dict["tool_calls"] = [tc.model_dump() for tc in assistant_message.tool_calls]
+        
+        current_messages.append(assistant_dict)
+        
+        # アシスタントの応答を表示
+        if assistant_message.content:
+            print(f"\n {assistant_message.content}", flush=True)
+        
+        # ツール呼び出しがなければ終了
+        if not assistant_message.tool_calls:
+            break
+        
+        # ツール呼び出しを処理
+        print("\n" + "="*60)
+        print(" ツール呼び出し")
+        print("="*60)
+        
+        for tool_call in assistant_message.tool_calls:
+            tool_name = tool_call.function.name
+            tool_args = json.loads(tool_call.function.arguments)
+            
+            if ARGS.show_tool_calls:
+                print(f"\n {tool_name}")
+                print(f"   引数: {json.dumps(tool_args, ensure_ascii=False)}")
+            else:
+                print(f"\n {tool_name} 実行中...")
+            
+            # MCPサーバーでツールを実行
+            try:
+                tool_result = await server.call_tool(tool_name, tool_args)
+                
+                # テキストと画像を抽出
+                text_content, image_data = extract_content_from_tool_result(tool_result)
+                
+                # 画像がある場合は保存してマーカーを追加
+                if image_data:
+                    img_id = image_store.add(image_data)
+                    text_content += f"\n[画像生成済み: {img_id}]"
+                    logging.debug(f"画像を保存: {img_id}")
+                
+                # 結果を表示
+                print(f" 結果:")
+                display_text = format_tool_result_for_display(tool_result)
+                if len(display_text) > 500:
+                    print(display_text[:500])
+                    print("... (省略)")
+                else:
+                    print(display_text)
+                
+                # ツール結果をメッセージ履歴に追加
+                current_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": text_content
+                })
+                
+            except Exception as e:
+                error_msg = f"ツール実行エラー: {str(e)}"
+                logging.error(error_msg)
+                print(f"❌ {error_msg}")
+                
+                # エラーもメッセージ履歴に追加
+                current_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": f'{{"error": "{str(e)}"}}'
+                })
+        
+        print("="*60)
+        
+        # 次のターンへ（ツール結果を受けてAIが応答）
+    
+    else:
+        # 最大ターン数に達した
+        logging.warning(f"最大ターン数 {ARGS.max_turns} に達しました")
+    
+    # 最終的なアシスタントの応答を取得
+    final_response = ""
+    for msg in reversed(current_messages):
+        if msg["role"] == "assistant" and msg.get("content"):
+            final_response = msg["content"]
+            break
+    
+    return final_response, current_messages
 
 def path_to_data_url(path: str) -> str:
     """
@@ -256,127 +376,6 @@ def path_to_data_url(path: str) -> str:
     return f"data:{mime};base64,{b64}"
 
 
-async def chat_with_tools(
-    client: AsyncOpenAI,
-    server: MCPServerStdio,
-    messages: List[Dict[str, Any]],
-    tools: List[Dict[str, Any]],
-    model: str
-) -> tuple[str, List[Dict[str, Any]]]:
-    """
-    OpenAI APIを使ってツール呼び出しを含む会話を実行
-
-    Returns:
-        (最終的なアシスタントの応答, 更新されたメッセージ履歴)
-    """
-    current_messages = messages.copy()
-
-    for turn in range(ARGS.max_turns):
-        logging.debug(f"Turn {turn + 1}/{ARGS.max_turns}")
-
-        # OpenAI APIを呼び出し
-        response = await client.chat.completions.create(
-            model=model,
-            messages=current_messages,
-            tools=tools,
-            tool_choice="auto"
-        )
-
-        assistant_message = response.choices[0].message
-
-        # アシスタントのメッセージを履歴に追加
-        assistant_dict = {
-            "role": "assistant",
-            "content": assistant_message.content,
-        }
-        if assistant_message.tool_calls:
-            # pydanticモデル -> dict
-            assistant_dict["tool_calls"] = [tc.model_dump() for tc in assistant_message.tool_calls]
-
-        current_messages.append(assistant_dict)
-
-        # アシスタントの応答を表示
-        if assistant_message.content:
-            print(f"\n {assistant_message.content}", flush=True)
-
-        # ツール呼び出しがなければ終了
-        if not assistant_message.tool_calls:
-            break
-
-        # ツール呼び出しを処理
-        print("\n" + "="*60)
-        print(" ツール呼び出し")
-        print("="*60)
-
-        for tool_call in assistant_message.tool_calls:
-            tool_name = tool_call.function.name
-            tool_args = json.loads(tool_call.function.arguments)
-
-            if ARGS.show_tool_calls:
-                print(f"\n {tool_name}")
-                print(f"   引数: {json.dumps(tool_args, ensure_ascii=False)}")
-            else:
-                print(f"\n {tool_name} 実行中...")
-
-            # MCPサーバーでツールを実行
-            try:
-                tool_result = await server.call_tool(tool_name, tool_args)
-
-                # テキストと画像を抽出
-                text_content, image_data = extract_content_from_tool_result(tool_result)
-
-                # 画像がある場合は保存してマーカーを追加
-                if image_data:
-                    img_id = image_store.add(image_data)
-                    text_content += f"\n[画像生成済み: {img_id}]"
-                    logging.debug(f"画像を保存: {img_id}")
-
-                # 結果を表示
-                print(f" 結果:")
-                display_text = format_tool_result_for_display(tool_result)
-                # print(display_text)
-                if len(display_text) > 500:
-                    print(display_text[:500])
-                    print("... (省略)")
-                else:
-                    print(display_text)
-
-                # ツール結果をメッセージ履歴に追加
-                current_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": text_content
-                })
-
-            except Exception as e:
-                error_msg = f"ツール実行エラー: {str(e)}"
-                logging.error(error_msg)
-                print(f"❌ {error_msg}")
-
-                # エラーもメッセージ履歴に追加
-                current_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": f'{{"error": "{str(e)}"}}'
-                })
-
-        print("="*60)
-
-        # 次のターンへ（ツール結果を受けてAIが応答）
-
-    else:
-        # 最大ターン数に達した
-        logging.warning(f"最大ターン数 {ARGS.max_turns} に達しました")
-
-    # 最終的なアシスタントの応答を取得
-    final_response = ""
-    for msg in reversed(current_messages):
-        if msg["role"] == "assistant" and msg.get("content"):
-            final_response = msg["content"]
-            break
-
-    return final_response, current_messages
-
 
 async def main():
     # OpenAIクライアントの準備
@@ -392,7 +391,7 @@ async def main():
         # ツールリストを取得してOpenAI形式に変換
         mcp_tools = await server.list_tools()
         openai_tools = [mcp_tool_to_openai_function(tool) for tool in mcp_tools]
-
+        
         logging.info("[MCPツール] %s", [t.name for t in mcp_tools])
         logging.info("[OpenAI形式に変換] %d tools", len(openai_tools))
         logging.info("[モデル] %s", ARGS.model)
@@ -405,11 +404,11 @@ async def main():
         system_instructions = SYSTEM_INSTRUCTIONS_TEMPLATE.format(DOC_NAME=ARGS.doc_name)
 
         # メッセージ履歴（会話全体を通して保持）
-        messages: List[Dict[str, Any]] = [
+        messages = [
             {"role": "system", "content": system_instructions}
         ]
 
-        # ウォームアップUI
+        # ウォームアップ
         print("==== FreeCAD 対話モード (OpenAI直接呼び出し版) ====")
         print("例: 『半径30mmの球を作成』『Sphere_001を半径40mmに変更』など")
         print("座標を取得: 『Sphere_001の座標を教えて』")
@@ -418,59 +417,37 @@ async def main():
         print("終了: /exit")
         print()
 
-        # 最初の一言（画像1枚を添付可能）
+        # 最初の一言
         print(" 初期化中...\n")
 
-        # 初回メッセージ本文（テキスト部分）
-            # "添付した画像を参考に、見た目が近くなるようにおでんを作成してください。"
-            # "三角、四角、丸の図形と細長い円柱を用いて、おでん串を表現してください。\n"
+        if False:
+            first_message = """
+            (必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\n
+            Frecadで人工衛星を作って下し
+            """
+            # FreeCADで画像のようなALOS4(人工衛星)を作ってください。必ずどんなものがどこに配置されるか考えてから作業を完了してください。"
+            
+            data_url = path_to_data_url(ARGS.init_image)
+            first_user_message = {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": first_message},
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                ]
+            }
+            # messages.append({
+            #     "role": "user",
+            #     "content": first_message
+            # })
+            messages.append(first_user_message)
 
-        # --- ここが重要：画像を最初のメッセージに「同梱」 ---
-        if ARGS.init_image:
-            first_text = (
-                "(必ず全MCPツール引数に doc_name='Main' を含め、寸法はmmで明示してください)\n"
-                "画像のような物体をfreecadで制約を守りながら作ってください"
+            _, messages = await chat_with_tools(
+                openai_client,
+                server,
+                messages,
+                openai_tools,
+                ARGS.model
             )
-            try:
-                data_url = path_to_data_url(ARGS.init_image)
-                first_user_message = {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": first_text},
-                        {"type": "image_url", "image_url": {"url": data_url}}
-                    ]
-                }
-                print(f"[初回画像添付] {ARGS.init_image}")
-                
-                messages.append(first_user_message)
-
-                # 最初のターン実行
-                _, messages = await chat_with_tools(
-                    openai_client,
-                    server,
-                    messages,
-                    openai_tools,
-                    ARGS.model
-                )
-            except Exception as e:
-                logging.error(f"初回画像の読み込みに失敗しました: {e}")
-                # 画像なしで送る（継続可能）
-                first_user_message = {"role": "user", "content": first_text}
-        else:
-            # 画像指定なし
-            print("画像なし")
-            # first_user_message = {"role": "user", "content": first_text}
-
-            # messages.append(first_user_message)
-
-            # # 最初のターン実行
-            # _, messages = await chat_with_tools(
-            #     openai_client,
-            #     server,
-            #     messages,
-            #     openai_tools,
-            #     ARGS.model
-            # )
 
         # REPL
         while True:
@@ -505,7 +482,7 @@ async def main():
                     print(f"  [{i}] {role}: {content}")
                 continue
 
-            # ユーザーメッセージを追加（通常はテキストのみ）
+            # ユーザーメッセージを追加
             messages.append({
                 "role": "user",
                 "content": user_text
