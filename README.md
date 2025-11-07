@@ -10,5 +10,3 @@ uv run python exec.py --init-image  hoge.png
 原点に半径40ｍｍの球を追加して
 ドーナッツを下に40㎜ずらして
 
-
-集
